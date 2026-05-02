@@ -1,5 +1,9 @@
 # 🌀 MixHub Studio
 
+<p align="center">
+  <img src="./assets/dashboard.jpg" width="100%" alt="MixHub Studio Dashboard">
+</p>
+
 > **Distilled AI Model Router & Developer Workspace**
 > 一个极致提纯的本地 AI 模型路由站，专为追求效率与美学的开发者打造。
 
@@ -26,6 +30,20 @@
 - **一体化编辑器**：内置沉浸式代码示例框架。
 - **多语言接入**：提供 Python (OpenAI SDK)、Node.js 及 cURL 的标准接入方案。
 - **语法高亮**：基于 JetBrains Mono 的硬核代码质感。
+
+---
+
+## 📸 界面预览
+
+<table style="width: 100%; border-collapse: collapse;">
+  <tr>
+    <td style="width: 50%; padding: 5px;"><img src="./assets/chat.jpg" alt="Chat UI"></td>
+    <td style="width: 50%; padding: 5px;"><img src="./assets/model-pools.jpg" alt="Model Pools"></td>
+  </tr>
+  <tr>
+    <td colspan="2" style="padding: 5px;"><img src="./assets/api-guide.jpg" alt="API Guide"></td>
+  </tr>
+</table>
 
 ---
 
