@@ -1,9 +1,5 @@
 # 🌀 MixHub Studio
 
-<p align="center">
-  <img src="./assets/dashboard.jpg" width="100%" alt="MixHub Studio Dashboard">
-</p>
-
 > **Distilled AI Model Router & Developer Workspace**
 > 一个极致提纯的本地 AI 模型路由站，专为追求效率与美学的开发者打造。
 
@@ -41,7 +37,8 @@
     <td style="width: 50%; padding: 5px;"><img src="./assets/model-pools.jpg" alt="Model Pools"></td>
   </tr>
   <tr>
-    <td colspan="2" style="padding: 5px;"><img src="./assets/api-guide.jpg" alt="API Guide"></td>
+    <td style="width: 50%; padding: 5px;"><img src="./assets/dashboard.jpg" alt="Dashboard"></td>
+    <td style="width: 50%; padding: 5px;"><img src="./assets/api-guide.jpg" alt="API Guide"></td>
   </tr>
 </table>
 
