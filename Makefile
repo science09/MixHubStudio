@@ -30,6 +30,9 @@ run: install
 tauri-dev:
 	npm run tauri dev
 
+build:
+	npm run tauri build
+
 clean:
 	rm -rf __pycache__
 	find . -name "*.pyc" -delete

@@ -1,5 +1,6 @@
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, computed, watch } from 'vue'
+import logoUrl from './assets/logo.jpg'
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github-dark.css'
@@ -8,12 +9,15 @@ const md = new MarkdownIt({
   highlight: function (str, lang) {
     if (lang && hljs.getLanguage(lang)) {
       try {
-        return '<pre class="hljs"><code>' +
-               hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
-               '</code></pre>';
+        const highlighted = hljs.highlight(str, { language: lang, ignoreIllegals: true }).value;
+        let btnHtml = '';
+        if (lang.toLowerCase() === 'html' || lang.toLowerCase() === 'xml') {
+          btnHtml = `<button class="btn-preview-html" data-content="${encodeURIComponent(str)}">✨ ${currentLang.value === 'zh' ? '预览效果' : 'Preview'}</button>`;
+        }
+        return `<div class="code-block-wrapper">${btnHtml}<pre class="hljs"><code>${highlighted}</code></pre></div>`;
       } catch (__) {}
     }
-    return '<pre class="hljs"><code>' + md.utils.escapeHtml(str) + '</code></pre>';
+    return `<pre class="hljs"><code>${md.utils.escapeHtml(str)}</code></pre>`;
   },
   linkify: true,
   breaks: true
@@ -35,7 +39,10 @@ const i18n = {
     empty_state: '问点什么来开启对话吧...', total: '总计',
     settings: '系统设置', save: '保存设置', saved: '设置已保存', api_keys: 'API 密钥配置',
     aihubmix_key: 'AIHubMix 密钥', bailian_key: '阿里百炼 密钥', modelscope_key: '魔搭 密钥',
-    all: '全部', provider: '供应商', api_guide: 'API 指南', endpoints: '接入端点'
+    all: '全部', provider: '供应商', api_guide: 'API 指南', endpoints: '接入端点',
+    backend_error: '无法连接到后端。请确保 "make run" 正在运行。',
+    server_error: '服务器错误', retry_hint: '正在尝试自动重连...',
+    preview: '预览效果', preview_title: 'HTML 实时预览', close: '关闭', success_rate: '成功率'
   },
   en: {
     chat: 'Chat Studio', models: 'Model Hub', stats: 'Analytics', sync: 'Sync Models', syncing: 'Syncing...',
@@ -48,7 +55,10 @@ const i18n = {
     empty_state: 'Ask anything to start this conversation...', total: 'Total',
     settings: 'Settings', save: 'Save Settings', saved: 'Settings Saved', api_keys: 'API Keys Configuration',
     aihubmix_key: 'AIHubMix Key', bailian_key: 'Bailian Key', modelscope_key: 'ModelScope Key',
-    all: 'All', provider: 'Provider', api_guide: 'API Guide', endpoints: 'Endpoints'
+    all: 'All', provider: 'Provider', api_guide: 'API Guide', endpoints: 'Endpoints',
+    backend_error: 'Cannot reach backend. Make sure "make run" is active.',
+    server_error: 'Server Error', retry_hint: 'Attempting to reconnect automatically...',
+    preview: 'Preview', preview_title: 'HTML Live Preview', close: 'Close', success_rate: 'Success Rate'
   }
 }
 
@@ -85,8 +95,27 @@ const isRefreshing = ref(false)
 const isConnected = ref(true)
 const connectionError = ref('')
 
-// API 基础路径
-const API_BASE = 'http://127.0.0.1:8000'
+// Artifact 预览状态
+const showArtifact = ref(false)
+const artifactContent = ref('')
+const artifactIframe = ref(null)
+
+const openPreview = (content) => {
+  artifactContent.value = decodeURIComponent(content)
+  showArtifact.value = true
+  nextTick(() => {
+    if (artifactIframe.value) artifactIframe.value.focus()
+  })
+}
+
+const onIframeLoad = () => {
+  if (artifactIframe.value) {
+    artifactIframe.value.contentWindow.focus()
+  }
+}
+
+// API 基础路径 (切换至 Rust 高性能引擎进行测试)
+const API_BASE = 'http://127.0.0.1:8001'
 
 // 代码示例 Tab 状态
 const activeCodeTab = ref('python')
@@ -121,11 +150,11 @@ const updateStats = async () => {
       connectionError.value = ''
     } else {
       isConnected.value = false
-      connectionError.value = `Server error: ${res.status}`
+      connectionError.value = 'server_error'
     }
   } catch (e) {
     isConnected.value = false
-    connectionError.value = 'Cannot reach backend. Make sure "make run" is active.'
+    connectionError.value = 'backend_error'
   }
 }
 
@@ -245,8 +274,14 @@ const sendMessage = async () => {
     })
 
     if (!response.ok) {
-      const err = await response.json()
-      chatMessages.value[aiMsgIndex].content = `Error: ${err.detail || 'Request failed'}`
+      let errorMsg = 'Request failed'
+      try {
+        const err = await response.json()
+        errorMsg = err.error || err.detail || JSON.stringify(err)
+      } catch (e) {
+        errorMsg = await response.text() || 'Unknown error'
+      }
+      chatMessages.value[aiMsgIndex].content = `Error: ${errorMsg}`
       chatMessages.value[aiMsgIndex].isError = true
       return
     }
@@ -308,7 +343,8 @@ const refreshModels = async () => {
 const settings = ref({
   AIHUBMIX_API_KEY: '',
   BAILIAN_API_KEY: '',
-  MODELSCOPE_API_KEY: ''
+  MODELSCOPE_API_KEY: '',
+  PROXY_PORT: 8000
 })
 const isSaving = ref(false)
 const modelFilter = ref('All')
@@ -320,6 +356,13 @@ const filteredModels = computed(() => {
   if (modelFilter.value.toLowerCase() === 'all') return stats.value.models
   return stats.value.models.filter(m => m.provider === modelFilter.value)
 })
+
+const localEndpoints = computed(() => [
+  { p: 'Bailian', url: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
+  { p: 'ModelScope', url: 'https://api-inference.modelscope.cn/v1' },
+  { p: 'AIHubMix', url: 'https://api.aihubmix.com/v1' },
+  { p: 'LOCAL', url: `http://localhost:${settings.value.PROXY_PORT || 8000}/v1`, special: true }
+])
 
 const paginatedHistory = computed(() => {
   if (!stats.value.history) return []
@@ -358,6 +401,14 @@ const saveSettings = async () => {
   }
 }
 
+const purgeStats = async () => {
+  if (!confirm('确定要清空所有统计数据吗？此操作不可撤销。')) return
+  try {
+    await fetch(`${API_BASE}/api/stats/purge`, { method: 'POST' })
+    await updateStats()
+  } catch (e) {}
+}
+
 // 轮询定时器
 let timer
 onMounted(() => {
@@ -365,7 +416,36 @@ onMounted(() => {
   loadSessions()
   loadSettings()
   timer = setInterval(updateStats, 5000)
+  
+  // 监听预览按钮点击 (事件委托)
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-preview-html')
+    if (btn) {
+      openPreview(btn.dataset.content)
+    }
+  })
 })
+// 监听连接状态，恢复时自动刷新数据
+watch(isConnected, async (newVal, oldVal) => {
+  if (newVal === true && oldVal === false) {
+    console.log('Backend reconnected, refreshing data...')
+    await loadSessions()
+    await loadSettings()
+  }
+})
+
+// 监听标签页切换
+watch(activeTab, (newTab) => {
+  if (newTab === 'chat') {
+    scrollToBottom()
+  }
+})
+
+// 监听消息变化，自动滚动到底部
+watch(chatMessages, () => {
+  scrollToBottom()
+}, { deep: true })
+
 onUnmounted(() => clearInterval(timer))
 
 </script>
@@ -375,7 +455,7 @@ onUnmounted(() => clearInterval(timer))
     <!-- 侧边栏 -->
     <aside class="sidebar">
       <div class="logo">
-        <span class="logo-icon">🌀</span>
+        <img :src="logoUrl" class="logo-img" alt="MixHub">
         <span>MixHub Studio</span>
       </div>
       <nav>
@@ -418,7 +498,11 @@ onUnmounted(() => clearInterval(timer))
     <!-- 主内容区 -->
     <main class="main-content">
       <div v-if="!isConnected" class="connection-error-banner">
-        ⚠️ {{ connectionError }}
+        <div class="error-content">
+          <span class="error-icon">⚠️</span>
+          <span class="error-text">{{ t(connectionError) }}</span>
+          <div class="error-retry-hint">{{ t('retry_hint') }}</div>
+        </div>
       </div>
 
       <!-- 聊天页 (双栏布局) -->
@@ -593,7 +677,7 @@ onUnmounted(() => clearInterval(timer))
           </div>
           <div class="metric-divider"></div>
           <div class="metric-item">
-            <span class="m-label">SUCCESS RATE</span>
+            <span class="m-label">{{ t('success_rate') }}</span>
             <span class="m-value highlight">
               {{ ((stats.summary.success_count / (stats.summary.total_requests || 1)) * 100).toFixed(1) }}%
             </span>
@@ -603,6 +687,7 @@ onUnmounted(() => clearInterval(timer))
         <div class="history-premium mt-8">
           <div class="view-header">
             <h3>{{ t('history') }} <span class="page-indicator-distilled" v-if="totalPages > 0">({{ currentPage }} / {{ totalPages }})</span></h3>
+            <button class="btn-purge" @click="purgeStats">🗑️ 清空数据</button>
           </div>
           
           <div class="history-list-premium">
@@ -672,12 +757,7 @@ onUnmounted(() => clearInterval(timer))
                 </div>
               </div>
               <div class="endpoints-distilled">
-                <div v-for="ep in [
-                  { p: 'Bailian', url: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
-                  { p: 'ModelScope', url: 'https://api-inference.modelscope.cn/v1' },
-                  { p: 'AIHubMix', url: 'https://api.aihubmix.com/v1' },
-                  { p: 'LOCAL', url: 'http://localhost:8000/v1', special: true }
-                ]" :key="ep.p" :class="['ep-card-distilled', { local: ep.special }]">
+                <div v-for="ep in localEndpoints" :key="ep.p" :class="['ep-card-distilled', { local: ep.special }]">
                   <span :class="['p-tag-mini', ep.p.toLowerCase()]">{{ ep.p }}</span>
                   <code class="ep-url">{{ ep.url }}</code>
                 </div>
@@ -759,6 +839,16 @@ onUnmounted(() => clearInterval(timer))
                     <input v-model="settings.MODELSCOPE_API_KEY" type="password" placeholder="Key...">
                   </div>
                 </div>
+
+                <div class="settings-row">
+                  <div class="s-info">
+                    <label>本地代理端口 (Default: 8000)</label>
+                    <span class="s-desc">修改后需重启应用生效</span>
+                  </div>
+                  <div class="s-action">
+                    <input v-model="settings.PROXY_PORT" type="number" placeholder="8000">
+                  </div>
+                </div>
               </div>
 
             </div>
@@ -775,6 +865,28 @@ onUnmounted(() => clearInterval(timer))
         </div>
       </section>
     </main>
+
+    <!-- Artifact 预览侧板 -->
+    <div v-if="showArtifact" class="artifact-overlay" @click.self="showArtifact = false">
+      <div class="artifact-panel">
+        <div class="artifact-header">
+          <div class="artifact-title">
+            <span class="artifact-icon">✨</span>
+            {{ t('preview_title') }}
+          </div>
+          <button class="btn-close-artifact" @click="showArtifact = false">{{ t('close') }}</button>
+        </div>
+        <div class="artifact-body">
+          <iframe 
+            ref="artifactIframe"
+            :srcdoc="artifactContent" 
+            frameborder="0" 
+            sandbox="allow-scripts allow-same-origin"
+            @load="onIframeLoad"
+          ></iframe>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -828,8 +940,9 @@ h1, h2, h3 {
 
 /* Sidebar */
 .sidebar { width: 240px; background: var(--sidebar); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 20px; }
-.logo { display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 18px; margin-bottom: 30px; color: var(--primary); }
-.logo-icon { font-size: 24px; }
+.logo { display: flex; align-items: center; gap: 12px; margin-bottom: 30px; }
+.logo-img { width: 30px; height: 30px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border); }
+.logo span:last-child { font-weight: 900; font-size: 18px; color: var(--text); letter-spacing: -0.02em; }
 nav { flex: 1; overflow-y: auto; margin: 10px 0; }
 .nav-item { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-radius: 12px; cursor: pointer; margin-bottom: 4px; color: var(--text-light); font-weight: 700; transition: 0.2s; font-size: 14px; }
 .nav-item:hover { background: var(--bg); color: var(--text); }
@@ -846,6 +959,58 @@ nav { flex: 1; overflow-y: auto; margin: 10px 0; }
 .connection-status.offline { background: #fef2f2; color: #991b1b; }
 .connection-status .status-dot { width: 6px; height: 6px; background: currentColor; margin-right: 8px; border-radius: 50%; }
 
+/* Connection Error Banner Premium */
+.connection-error-banner {
+  position: sticky;
+  top: 16px;
+  z-index: 1000;
+  margin: 0 24px 24px 24px;
+  padding: 12px 20px;
+  background: oklch(95% 0.05 45 / 80%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid oklch(85% 0.1 45);
+  border-radius: 14px;
+  box-shadow: 0 4px 20px oklch(0% 0 0 / 5%);
+  animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.error-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.error-icon {
+  font-size: 16px;
+  animation: errorPulse 2s infinite;
+}
+
+@keyframes errorPulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.7; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.error-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: oklch(40% 0.15 45);
+  flex: 1;
+}
+
+.error-retry-hint {
+  font-size: 11px;
+  font-weight: 600;
+  color: oklch(50% 0.1 45);
+  opacity: 0.8;
+}
+
 .sidebar-footer { border-top: 1px solid var(--border); padding-top: 15px; }
 .btn-sync { width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: white; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; margin-bottom: 8px; }
 .btn-sync:hover { background: #f8fafc; border-color: var(--primary); color: var(--primary); }
@@ -858,10 +1023,12 @@ nav { flex: 1; overflow-y: auto; margin: 10px 0; }
 .tab-pane { flex: 1; display: flex; flex-direction: column; padding: 25px; overflow-y: auto; align-items: center; }
 .tab-pane > div, .tab-pane > section { width: 100%; max-width: 1350px; }
 
-.view-header { margin-bottom: 12px; }
+.view-header { margin-bottom: 12px; display: flex; justify-content: space-between; align-items: baseline; }
 .view-header h1 { font-size: 2.2rem; font-weight: 850; letter-spacing: -0.04em; color: var(--text); margin: 0; }
 .view-header h2 { font-size: 1.8rem; font-weight: 850; margin: 0; }
 .view-header h3 { font-size: 1.4rem; font-weight: 850; margin: 0; }
+.btn-purge { background: none; border: 1px solid var(--border); color: var(--text-light); padding: 4px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+.btn-purge:hover { background: #fef2f2; color: #ef4444; border-color: #fee2e2; }
 
 /* Chat Workspace */
 .chat-workspace { display: flex; flex: 1; background: white; border-radius: 20px; border: 1px solid var(--border); overflow: hidden; height: calc(100vh - 50px); }
@@ -1045,21 +1212,32 @@ nav { flex: 1; overflow-y: auto; margin: 10px 0; }
 .history-premium { width: 100%; }
 .history-list-premium { background: white; border-radius: 20px; border: 1px solid var(--border); overflow: hidden; }
 
-.h-thead { display: grid; grid-template-columns: 1fr 2.5fr 1fr 1fr 1.5fr; padding: 16px 24px; background: var(--sidebar); border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 850; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em; }
+.h-thead { 
+  display: grid; 
+  grid-template-columns: 1fr 2.5fr 1fr 1fr 1.5fr; 
+  padding: 16px 24px; 
+  background: var(--sidebar); 
+  border-bottom: 1px solid var(--border); 
+  font-family: 'JetBrains Mono', monospace; 
+  font-size: 13px; 
+  font-weight: 800; 
+  color: var(--text); 
+  letter-spacing: 0.02em; 
+}
 .h-row { display: grid; grid-template-columns: 1fr 2.5fr 1fr 1fr 1.5fr; padding: 14px 24px; border-bottom: 1px solid var(--bg); align-items: center; transition: 0.2s; }
 .h-row:last-child { border-bottom: none; }
 .h-row:hover { background: var(--bg); }
 
-.col-time { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-light); }
-.col-model { font-weight: 700; font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 12px; }
+.col-time { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; color: var(--text-light); }
+.col-model { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 12px; }
 
-.h-status-tag { font-size: 9px; font-weight: 900; padding: 2px 8px; border-radius: 6px; letter-spacing: 0.02em; }
+.h-status-tag { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 900; padding: 2px 8px; border-radius: 6px; letter-spacing: 0.02em; }
 .h-status-tag.success { background: oklch(95% 0.05 145); color: oklch(50% 0.15 145); }
 .h-status-tag.error { background: oklch(95% 0.05 25); color: oklch(50% 0.15 25); }
 
-.col-latency { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: var(--text); }
+.col-latency { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; color: var(--text); }
 
-.col-io { display: flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+.col-io { display: flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 13px; }
 .io-val { color: var(--text); font-weight: 700; }
 .io-arr { color: var(--border); font-weight: 400; }
 
@@ -1083,7 +1261,7 @@ nav { flex: 1; overflow-y: auto; margin: 10px 0; }
 .metrics-bar { display: flex; align-items: center; justify-content: space-between; background: white; padding: 30px 40px; border-radius: 24px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.02); margin-bottom: 20px; }
 .metric-item { display: flex; flex-direction: column; gap: 6px; }
 .metric-divider { width: 1px; height: 40px; background: var(--border); }
-.m-label { font-size: 11px; font-weight: 800; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.1em; }
+.m-label { font-family: 'Outfit', 'Inter', 'JetBrains Mono', monospace; font-size: 11px; font-weight: 850; color: var(--text); text-transform: uppercase; letter-spacing: 0.1em; }
 .m-value { font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: 800; color: var(--text); line-height: 1; }
 .m-value.highlight { color: var(--primary); }
 
@@ -1122,4 +1300,127 @@ nav { flex: 1; overflow-y: auto; margin: 10px 0; }
 .settings-footer-premium { display: flex; justify-content: flex-end; }
 .btn-save-premium { padding: 14px 40px; background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: 800; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 8px; font-size: 14px; }
 .btn-save-premium:hover { transform: translateY(-2px); box-shadow: 0 8px 24px var(--primary-light); }
+
+/* Artifact Preview Styles */
+.code-block-wrapper { position: relative; }
+.btn-preview-html {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 6px 12px;
+  background: oklch(30% 0.1 260);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  z-index: 10;
+  transition: 0.2s;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.btn-preview-html:hover { background: var(--primary); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+
+.artifact-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  justify-content: flex-end;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.artifact-panel {
+  width: 50%;
+  height: 100%;
+  background: white;
+  box-shadow: -10px 0 30px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  animation: slideLeft 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideLeft { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+.artifact-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--sidebar);
+}
+
+.artifact-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 850;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.artifact-icon { font-size: 18px; }
+
+.btn-close-artifact {
+  padding: 6px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: white;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.btn-close-artifact:hover { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+
+.artifact-body { flex: 1; background: #f8fafc; overflow: hidden; }
+.artifact-body iframe { width: 100%; height: 100%; background: white; }
+
+.markdown-body-premium pre { margin: 12px 0; border-radius: 12px; overflow: hidden; }
+
+/* Responsive Adjustments */
+@media (max-width: 1200px) {
+  .sessions-sidebar { width: 220px; }
+  .chat-input-wrapper { padding: 15px 20px 20px; }
+  .chat-messages-premium { padding: 20px; }
+}
+
+@media (max-width: 1024px) {
+  .sidebar { width: 80px; padding: 20px 10px; }
+  .logo span:last-child, .nav-item span:not(.nav-icon), .connection-status, .btn-sync, .btn-lang { display: none; }
+  .logo { justify-content: center; margin-bottom: 20px; }
+  .nav-item { justify-content: center; padding: 12px; }
+  .sidebar-footer { border: none; }
+  .nav-icon { width: 24px; height: 24px; }
+  
+  .tab-pane { padding: 15px; }
+  .chat-workspace { height: calc(100vh - 30px); }
+}
+
+@media (max-width: 768px) {
+  .sessions-sidebar { width: 180px; }
+  .chat-header h2 { font-size: 15px; }
+  .provider-selector { display: none; }
+  .msg-bubble-premium { max-width: 95%; }
+}
+
+@media (max-width: 640px) {
+  .sessions-sidebar { display: none; }
+  .app-container { flex-direction: column; }
+  .sidebar { width: 100%; height: 60px; flex-direction: row; padding: 0 15px; }
+  .logo { margin-bottom: 0; }
+  nav { display: flex; flex-direction: row; margin: 0; }
+  .nav-item { margin-bottom: 0; }
+  .sidebar-footer { display: none; }
+  .chat-workspace { border-radius: 0; border: none; }
+}
+
+/* Fix for flex overflow */
+.chat-main { min-width: 0; }
+.chat-input-area { width: 100%; }
 </style>
