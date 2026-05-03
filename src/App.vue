@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick, computed, watch } from 'vue'
+import { invoke } from '@tauri-apps/api/core'
 import logoUrl from './assets/logo.jpg'
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
@@ -42,7 +43,21 @@ const i18n = {
     all: '全部', provider: '供应商', api_guide: 'API 指南', endpoints: '接入端点',
     backend_error: '无法连接到后端。请确保 "make run" 正在运行。',
     server_error: '服务器错误', retry_hint: '正在尝试自动重连...',
-    preview: '预览效果', preview_title: 'HTML 实时预览', close: '关闭', success_rate: '成功率'
+    preview: '预览效果', preview_title: 'HTML 实时预览', close: '关闭', success_rate: '成功率',
+    settings_desc: '管理你的 API 端点和供应商凭证，确保智能路由高效运行。',
+    api_keys_desc: '配置后自动启用对应的模型提供商。',
+    aihubmix_desc: '用于接入全球顶级模型路由',
+    bailian_desc: '阿里云百炼平台访问凭证',
+    modelscope_desc: '魔搭社区推理 API 密钥',
+    proxy_port: '本地代理端口 (Default: 8000)',
+    restart_hint: '修改后需重启应用生效',
+    purge_confirm: '确定要清空所有统计数据吗？此操作不可撤销。',
+    purge_btn: '清空数据',
+    endpoints_desc: '支持多供应商原生端点与本地路由端点',
+    api_guide_desc: '通过标准 OpenAI 协议接入，快速将多模型路由能力集成到你的业务中。',
+    diagnostics: '故障排查',
+    open_logs: '打开本地日志文件夹',
+    logs_desc: '如果应用运行异常，请查看日志或发送给开发者'
   },
   en: {
     chat: 'Chat Studio', models: 'Model Hub', stats: 'Analytics', sync: 'Sync Models', syncing: 'Syncing...',
@@ -58,15 +73,28 @@ const i18n = {
     all: 'All', provider: 'Provider', api_guide: 'API Guide', endpoints: 'Endpoints',
     backend_error: 'Cannot reach backend. Make sure "make run" is active.',
     server_error: 'Server Error', retry_hint: 'Attempting to reconnect automatically...',
-    preview: 'Preview', preview_title: 'HTML Live Preview', close: 'Close', success_rate: 'Success Rate'
+    preview: 'Preview', preview_title: 'HTML Live Preview', close: 'Close', success_rate: 'Success Rate',
+    settings_desc: 'Manage your API endpoints and provider credentials.',
+    api_keys_desc: 'Model providers will be enabled after configuration.',
+    aihubmix_desc: 'Access top-tier global models',
+    bailian_desc: 'Alibaba Cloud Bailian access credentials',
+    modelscope_desc: 'ModelScope community API key',
+    proxy_port: 'Local Proxy Port (Default: 8000)',
+    restart_hint: 'Restart app to apply changes',
+    purge_confirm: 'Are you sure you want to clear all data?',
+    purge_btn: 'Clear Data',
+    endpoints_desc: 'Supports native provider and local routing endpoints',
+    api_guide_desc: 'Integrate multi-model routing via standard OpenAI protocol.',
+    diagnostics: 'Diagnostics',
+    open_logs: 'Open Log Folder',
+    logs_desc: 'View local logs for troubleshooting or support'
   }
 }
 
 const t = (key) => {
   if (!key) return ''
-  // 尝试匹配动态状态
-  const normalizedKey = key.toLowerCase().replace(/ /g, '_').split('(')[0].trim()
-  return i18n[currentLang.value][normalizedKey] || i18n[currentLang.value][key] || key
+  const lang = currentLang.value || 'zh'
+  return i18n[lang][key] || key
 }
 const copyCode = (type) => {
   const codes = {
@@ -402,11 +430,19 @@ const saveSettings = async () => {
 }
 
 const purgeStats = async () => {
-  if (!confirm('确定要清空所有统计数据吗？此操作不可撤销。')) return
+  if (!confirm(t('purge_confirm'))) return
   try {
     await fetch(`${API_BASE}/api/stats/purge`, { method: 'POST' })
     await updateStats()
   } catch (e) {}
+}
+
+const openLogFolder = async () => {
+  try {
+    await invoke('open_log_folder')
+  } catch (e) {
+    console.error('Failed to open log folder:', e)
+  }
 }
 
 // 轮询定时器
@@ -687,7 +723,7 @@ onUnmounted(() => clearInterval(timer))
         <div class="history-premium mt-8">
           <div class="view-header">
             <h3>{{ t('history') }} <span class="page-indicator-distilled" v-if="totalPages > 0">({{ currentPage }} / {{ totalPages }})</span></h3>
-            <button class="btn-purge" @click="purgeStats">🗑️ 清空数据</button>
+            <button class="btn-purge" @click="purgeStats">🗑️ {{ t('purge_btn') }}</button>
           </div>
           
           <div class="history-list-premium">
@@ -743,7 +779,7 @@ onUnmounted(() => clearInterval(timer))
         <div class="docs-premium">
           <div class="view-header">
             <h1>{{ t('api_guide') }}</h1>
-            <p class="view-subtitle">通过标准 OpenAI 协议接入，快速将多模型路由能力集成到你的业务中。</p>
+            <p class="view-subtitle">{{ t('api_guide_desc') }}</p>
           </div>
 
           <div class="docs-grid-premium">
@@ -753,7 +789,7 @@ onUnmounted(() => clearInterval(timer))
                 <div class="header-icon">🔌</div>
                 <div class="header-text">
                   <h3>{{ t('endpoints') }}</h3>
-                  <p>支持多供应商原生端点与本地路由端点</p>
+                  <p>{{ t('endpoints_desc') }}</p>
                 </div>
               </div>
               <div class="endpoints-distilled">
@@ -798,7 +834,7 @@ onUnmounted(() => clearInterval(timer))
         <div class="settings-premium">
           <div class="view-header">
             <h1>{{ t('settings') }}</h1>
-            <p>管理你的 API 端点和供应商凭证，确保智能路由高效运行。</p>
+            <p>{{ t('settings_desc') }}</p>
           </div>
 
           <div class="settings-sections">
@@ -806,14 +842,14 @@ onUnmounted(() => clearInterval(timer))
             <div class="settings-group">
               <div class="group-header">
                 <h3>{{ t('api_keys') }}</h3>
-                <p>配置后自动启用对应的模型提供商。</p>
+                <p>{{ t('api_keys_desc') }}</p>
               </div>
               
               <div class="settings-list">
                 <div class="settings-row">
                   <div class="s-info">
                     <label>{{ t('aihubmix_key') }}</label>
-                    <span class="s-desc">用于接入全球顶级模型路由</span>
+                    <span class="s-desc">{{ t('aihubmix_desc') }}</span>
                   </div>
                   <div class="s-action">
                     <input v-model="settings.AIHUBMIX_API_KEY" type="password" placeholder="sk-...">
@@ -823,7 +859,7 @@ onUnmounted(() => clearInterval(timer))
                 <div class="settings-row">
                   <div class="s-info">
                     <label>{{ t('bailian_key') }}</label>
-                    <span class="s-desc">阿里云百炼平台访问凭证</span>
+                    <span class="s-desc">{{ t('bailian_desc') }}</span>
                   </div>
                   <div class="s-action">
                     <input v-model="settings.BAILIAN_API_KEY" type="password" placeholder="sk-...">
@@ -833,7 +869,7 @@ onUnmounted(() => clearInterval(timer))
                 <div class="settings-row">
                   <div class="s-info">
                     <label>{{ t('modelscope_key') }}</label>
-                    <span class="s-desc">魔搭社区推理 API 密钥</span>
+                    <span class="s-desc">{{ t('modelscope_desc') }}</span>
                   </div>
                   <div class="s-action">
                     <input v-model="settings.MODELSCOPE_API_KEY" type="password" placeholder="Key...">
@@ -842,8 +878,8 @@ onUnmounted(() => clearInterval(timer))
 
                 <div class="settings-row">
                   <div class="s-info">
-                    <label>本地代理端口 (Default: 8000)</label>
-                    <span class="s-desc">修改后需重启应用生效</span>
+                    <label>{{ t('proxy_port') }}</label>
+                    <span class="s-desc">{{ t('restart_hint') }}</span>
                   </div>
                   <div class="s-action">
                     <input v-model="settings.PROXY_PORT" type="number" placeholder="8000">
@@ -851,6 +887,25 @@ onUnmounted(() => clearInterval(timer))
                 </div>
               </div>
 
+            </div>
+
+            <!-- 诊断组 -->
+            <div class="settings-group">
+              <div class="group-header">
+                <h3>{{ t('diagnostics') }}</h3>
+                <p>{{ t('logs_desc') }}</p>
+              </div>
+              <div class="settings-list">
+                <div class="settings-row">
+                  <div class="s-info">
+                    <label>{{ t('open_logs') }}</label>
+                    <span class="s-desc">Path: ~/Library/Logs/com.mixhub.ultimate/</span>
+                  </div>
+                  <div class="s-action">
+                    <button class="btn-sync" style="margin-bottom: 0;" @click="openLogFolder">📁 {{ t('open_logs') }}</button>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- 操作区 -->

@@ -16,6 +16,8 @@ use parking_lot::Mutex;
 use futures_util::StreamExt;
 use reqwest::Client;
 use chrono::Local;
+use log::{info, error};
+use tauri_plugin_opener::OpenerExt;
 
 // --- 数据模型 ---
 
@@ -439,7 +441,7 @@ async fn chat_completions(State(state): State<Arc<AppState>>, Json(req): Json<Ch
 
         if key.is_empty() { continue; }
 
-        println!(">>> Attempting {} via {} ({}/{})", target_id, url, i+1, max_tries);
+        info!(">>> Attempting {} via {} ({}/{})", target_id, url, i+1, max_tries);
 
         let mut payload = serde_json::to_value(&req).unwrap();
         if let Some(obj) = payload.as_object_mut() {
@@ -458,7 +460,7 @@ async fn chat_completions(State(state): State<Arc<AppState>>, Json(req): Json<Ch
                 let status = response.status();
                 if !status.is_success() {
                     let err_text = response.text().await.unwrap_or_default();
-                    println!("!!! {} failed ({}): {}", target_id, status, err_text);
+                    error!("!!! {} failed ({}): {}", target_id, status, err_text);
                     continue;
                 }
 
@@ -512,7 +514,7 @@ async fn chat_completions(State(state): State<Arc<AppState>>, Json(req): Json<Ch
                     .unwrap();
             }
             Err(e) => {
-                println!("!!! Request failed for {}: {}", target_id, e);
+                error!("!!! Request failed for {}: {}", target_id, e);
                 continue;
             }
         }
@@ -552,6 +554,17 @@ async fn get_messages(State(state): State<Arc<AppState>>, Path(sid): Path<String
     let mut stmt = db.prepare("SELECT role, content, model FROM chat_messages WHERE session_id = ? ORDER BY timestamp ASC").unwrap();
     let rows = stmt.query_map(params![sid], |row| Ok(serde_json::json!({"role": row.get::<_, String>(0)?, "content": row.get::<_, String>(1)?, "model": row.get::<_, Option<String>>(2)?}))).unwrap();
     Json(rows.map(|r| r.unwrap()).collect::<Vec<_>>())
+}
+
+#[tauri::command]
+async fn open_log_folder(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+    let log_dir = app.path().app_log_dir().map_err(|e| e.to_string())?;
+    if !log_dir.exists() {
+        std::fs::create_dir_all(&log_dir).map_err(|e| e.to_string())?;
+    }
+    let _ = app.opener().open_path(log_dir.to_string_lossy(), None::<&str>);
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -625,12 +638,12 @@ pub fn run() {
         
         // 启动 UI 控制后台 (固定 8001)
         let ui_listener = tokio::net::TcpListener::bind("127.0.0.1:8001").await.unwrap();
-        println!("Console API listening on http://127.0.0.1:8001");
+        info!("Console API listening on http://127.0.0.1:8001");
         
         // 启动 代理网关 (用户自定义端口)
         let proxy_port = axum_state.config.read().await.proxy_port;
         let proxy_listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", proxy_port)).await.unwrap();
-        println!("Proxy Gateway listening on http://0.0.0.0:{}", proxy_port);
+        info!("Proxy Gateway listening on http://0.0.0.0:{}", proxy_port);
 
         let app_ui = app.clone();
         let app_proxy = app;
@@ -641,5 +654,25 @@ pub fn run() {
         );
     });
 
-    tauri::Builder::default().plugin(tauri_plugin_opener::init()).run(tauri::generate_context!()).expect("error");
+    tauri::Builder::default()
+        .plugin(tauri_plugin_log::Builder::new()
+            .target(tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
+                file_name: Some("app".into()),
+            }))
+            .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepSome(5))
+            .max_file_size(10 * 1024 * 1024) // 10MB
+            .level(log::LevelFilter::Info) // 只显示 INFO 及以上
+            .filter(|metadata| {
+                // 屏蔽掉过于琐碎的依赖库日志
+                let target = metadata.target();
+                !target.starts_with("hyper") && 
+                !target.starts_with("tao") && 
+                !target.starts_with("mio") &&
+                !target.starts_with("want")
+            })
+            .build())
+        .plugin(tauri_plugin_opener::init())
+        .invoke_handler(tauri::generate_handler![open_log_folder])
+        .run(tauri::generate_context!())
+        .expect("error");
 }

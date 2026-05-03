@@ -34,4 +34,6 @@ lazy_static = "1.4"
 parking_lot = "0.12"
 tokio-stream = "0.1"
 tokio-util = { version = "0.7.18", features = ["io"] }
+tauri-plugin-log = "2.0.0-rc"
+log = "0.4.29"
 
