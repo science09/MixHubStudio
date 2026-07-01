@@ -14,11 +14,18 @@
       {
         "title": "MixHub Studio",
         "width": 1200,
-        "height": 850
+        "height": 850,
+        "dragDropEnabled": false
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "$HOME/**/*"
+        ]
+      }
     }
   },
   "bundle": {

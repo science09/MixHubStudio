@@ -24,78 +24,28 @@ const md = new MarkdownIt({
   breaks: true
 })
 
+import WikiView from './components/WikiView.vue'
+import WechatEditor from './components/WechatEditor.vue'
+import WechatAnalytics from './components/wechat-editor/WechatAnalytics.vue'
+import { i18n, currentLang, t, toggleLang } from './utils/i18n'
+
+watch(currentLang, (newVal) => {
+  window.__MIXHUB_LANG__ = newVal
+}, { immediate: true })
+
 // 状态管理
 const activeTab = ref('chat')
-const currentLang = ref('zh')
+const wikiViewRef = ref(null)
 
-const i18n = {
-  zh: {
-    chat: '聊天室', models: '模型池', stats: '统计看板', sync: '同步模型', syncing: '同步中...',
-    new_chat: '+ 新建会话', select_session: '请选择或创建一个会话', placeholder: '问点什么...',
-    send: '发送', thinking: '思考中...', connected: '后端已连接', offline: '后端已断开',
-    history: '请求历史详情', time: '时间', model: '模型', status: '状态', latency: '延迟',
-    in_out: '输入 -> 输出', cached: '缓存', total_req: '总请求数', success: '成功次数',
-    tokens: '总消耗 Token', error_blocked: '失败/拦截', available: '可用', cooldown: '冷却中',
-    active_pool: '活跃模型池', caps: '能力', fail: '失败', last_active: '最后活跃',
-    empty_state: '问点什么来开启对话吧...', total: '总计',
-    settings: '系统设置', save: '保存设置', saved: '设置已保存', api_keys: 'API 密钥配置',
-    aihubmix_key: 'AIHubMix 密钥', bailian_key: '阿里百炼 密钥', modelscope_key: '魔搭 密钥',
-    all: '全部', provider: '供应商', api_guide: 'API 指南', endpoints: '接入端点',
-    backend_error: '无法连接到后端。请确保 "make run" 正在运行。',
-    server_error: '服务器错误', retry_hint: '正在尝试自动重连...',
-    preview: '预览效果', preview_title: 'HTML 实时预览', close: '关闭', success_rate: '成功率',
-    settings_desc: '管理你的 API 端点和供应商凭证，确保智能路由高效运行。',
-    api_keys_desc: '配置后自动启用对应的模型提供商。',
-    aihubmix_desc: '用于接入全球顶级模型路由',
-    bailian_desc: '阿里云百炼平台访问凭证',
-    modelscope_desc: '魔搭社区推理 API 密钥',
-    proxy_port: '本地代理端口 (Default: 8000)',
-    restart_hint: '修改后需重启应用生效',
-    purge_confirm: '确定要清空所有统计数据吗？此操作不可撤销。',
-    purge_btn: '清空数据',
-    endpoints_desc: '支持多供应商原生端点与本地路由端点',
-    api_guide_desc: '通过标准 OpenAI 协议接入，快速将多模型路由能力集成到你的业务中。',
-    diagnostics: '故障排查',
-    open_logs: '打开本地日志文件夹',
-    logs_desc: '如果应用运行异常，请查看日志或发送给开发者'
-  },
-  en: {
-    chat: 'Chat Studio', models: 'Model Hub', stats: 'Analytics', sync: 'Sync Models', syncing: 'Syncing...',
-    new_chat: '+ New Chat', select_session: 'Select or create a session', placeholder: 'Ask anything...',
-    send: 'Send', thinking: 'Thinking...', connected: 'Backend Connected', offline: 'Backend Offline',
-    history: 'Detailed Request History', time: 'TIME', model: 'MODEL', status: 'STATUS', latency: 'LATENCY',
-    in_out: 'IN -> OUT', cached: 'CACHED', total_req: 'Total Requests', success: 'Success Count',
-    tokens: 'Tokens Consumed', error_blocked: 'Errors / Blocked', available: 'Available', cooldown: 'Cooldown',
-    active_pool: 'Active Models Pool', caps: 'Capabilities', fail: 'Fail', last_active: 'Last Used',
-    empty_state: 'Ask anything to start this conversation...', total: 'Total',
-    settings: 'Settings', save: 'Save Settings', saved: 'Settings Saved', api_keys: 'API Keys Configuration',
-    aihubmix_key: 'AIHubMix Key', bailian_key: 'Bailian Key', modelscope_key: 'ModelScope Key',
-    all: 'All', provider: 'Provider', api_guide: 'API Guide', endpoints: 'Endpoints',
-    backend_error: 'Cannot reach backend. Make sure "make run" is active.',
-    server_error: 'Server Error', retry_hint: 'Attempting to reconnect automatically...',
-    preview: 'Preview', preview_title: 'HTML Live Preview', close: 'Close', success_rate: 'Success Rate',
-    settings_desc: 'Manage your API endpoints and provider credentials.',
-    api_keys_desc: 'Model providers will be enabled after configuration.',
-    aihubmix_desc: 'Access top-tier global models',
-    bailian_desc: 'Alibaba Cloud Bailian access credentials',
-    modelscope_desc: 'ModelScope community API key',
-    proxy_port: 'Local Proxy Port (Default: 8000)',
-    restart_hint: 'Restart app to apply changes',
-    purge_confirm: 'Are you sure you want to clear all data?',
-    purge_btn: 'Clear Data',
-    endpoints_desc: 'Supports native provider and local routing endpoints',
-    api_guide_desc: 'Integrate multi-model routing via standard OpenAI protocol.',
-    diagnostics: 'Diagnostics',
-    open_logs: 'Open Log Folder',
-    logs_desc: 'View local logs for troubleshooting or support'
+const showModal = (title, msg, type = 'info', onConfirm = null) => {
+  // 简单的弹窗逻辑
+  if (onConfirm) {
+    if (confirm(msg)) onConfirm();
+  } else {
+    alert(msg);
   }
 }
 
-const t = (key) => {
-  if (!key) return ''
-  const lang = currentLang.value || 'zh'
-  return i18n[lang][key] || key
-}
 const copyCode = (type) => {
   const codes = {
     python: `from openai import OpenAI\n\nclient = OpenAI(api_key="YOUR_ROUTER_KEY", base_url="http://localhost:8000/v1")\n\nresponse = client.chat.completions.create(\n    model="any",\n    messages=[{"role": "user", "content": "你好"}],\n    stream=True\n)\n\nfor chunk in response:\n    print(chunk.choices[0].delta.content or "", end="")`,
@@ -105,7 +55,6 @@ const copyCode = (type) => {
   navigator.clipboard.writeText(codes[type])
   alert('Copied!')
 }
-const toggleLang = () => currentLang.value = currentLang.value === 'zh' ? 'en' : 'zh'
 const stats = ref({
   summary: { total_requests: 0, success_count: 0, total_tokens: 0, fail_count: 0 },
   models: [],
@@ -372,13 +321,48 @@ const settings = ref({
   AIHUBMIX_API_KEY: '',
   BAILIAN_API_KEY: '',
   MODELSCOPE_API_KEY: '',
-  PROXY_PORT: 8000
+  PROXY_PORT: 8000,
+  REASONING_MODEL: 'gpt-4o-mini',
+  WECHAT_APP_ID: '',
+  WECHAT_APP_SECRET: '',
+  WRITING_API_URL: '',
+  WRITING_API_KEY: '',
+  WRITING_API_MODEL: '',
+  WRITING_MIXHUB_MODEL: 'any',
 })
 const isSaving = ref(false)
 const modelFilter = ref('All')
 const chatProvider = ref('All')
 const currentPage = ref(1)
-const itemsPerPage = ref(20)
+const itemsPerPage = ref(10)
+
+const changePage = (p) => {
+  if (p >= 1 && p <= totalPages.value) {
+    currentPage.value = p
+  }
+}
+
+// Toast System
+const toast = ref({ message: '', visible: false, type: 'info' })
+const showToast = (msg, type = 'info') => {
+  toast.value = { message: msg, visible: true, type }
+  setTimeout(() => { toast.value.visible = false }, 3000)
+}
+
+const isReasoning = (modelId) => {
+  if (!settings.value.REASONING_MODEL) return false
+  return settings.value.REASONING_MODEL.split(',').includes(modelId)
+}
+const toggleReasoning = (modelId) => {
+  let list = settings.value.REASONING_MODEL ? settings.value.REASONING_MODEL.split(',') : []
+  if (list.includes(modelId)) {
+    list = list.filter(id => id !== modelId)
+  } else {
+    list.push(modelId)
+  }
+  settings.value.REASONING_MODEL = list.filter(id => id.trim() !== '').join(',')
+  saveSettings()
+}
 
 const filteredModels = computed(() => {
   if (modelFilter.value.toLowerCase() === 'all') return stats.value.models
@@ -420,7 +404,7 @@ const saveSettings = async () => {
       body: JSON.stringify(settings.value)
     })
     if (res.ok) {
-      alert(t('saved'))
+      showToast(t('saved'), 'success')
       await loadSessions()
       await updateStats()
     }
@@ -453,11 +437,30 @@ onMounted(() => {
   loadSettings()
   timer = setInterval(updateStats, 5000)
   
-  // 监听预览按钮点击 (事件委托)
+  // 监听预览按钮和超链接点击 (事件委托)
   document.addEventListener('click', (e) => {
     const btn = e.target.closest('.btn-preview-html')
     if (btn) {
       openPreview(btn.dataset.content)
+      return
+    }
+
+    const anchor = e.target.closest('a')
+    if (anchor && anchor.href) {
+      const href = anchor.href
+      if (href.startsWith('http://') || href.startsWith('https://')) {
+        try {
+          const urlObj = new URL(href)
+          if (urlObj.hostname !== 'localhost' && urlObj.hostname !== '127.0.0.1') {
+            e.preventDefault()
+            invoke('open_path', { path: href }).catch(err => {
+              console.error('Failed to open external url:', err)
+            })
+          }
+        } catch (err) {
+          console.error('Invalid URL:', err)
+        }
+      }
     }
   })
 })
@@ -503,6 +506,18 @@ onUnmounted(() => clearInterval(timer))
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
           {{ t('api_guide') }}
         </div>
+        <div :class="['nav-item', { active: activeTab === 'wiki' }]" @click="activeTab = 'wiki'">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+          {{ t('wiki') }}
+        </div>
+        <div :class="['nav-item', { active: activeTab === 'wechat' }]" @click="activeTab = 'wechat'">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+          {{ t('wechat_editor') }}
+        </div>
+        <div :class="['nav-item', { active: activeTab === 'wechat_analytics' }]" @click="activeTab = 'wechat_analytics'">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
+          {{ t('wechat_analytics') }}
+        </div>
         <div :class="['nav-item', { active: activeTab === 'models' }]" @click="activeTab = 'models'">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
           {{ t('models') }}
@@ -541,8 +556,17 @@ onUnmounted(() => clearInterval(timer))
         </div>
       </div>
 
+      <!-- Wiki Tab -->
+      <WikiView v-show="activeTab === 'wiki'" ref="wikiViewRef" :showModal="showModal" />
+
+      <!-- WeChat Editor Tab -->
+      <WechatEditor v-show="activeTab === 'wechat'" />
+
+      <!-- WeChat Analytics Tab -->
+      <WechatAnalytics v-show="activeTab === 'wechat_analytics'" :active-tab="activeTab" />
+
       <!-- 聊天页 (双栏布局) -->
-      <section v-if="activeTab === 'chat'" class="tab-pane h-full">
+      <section v-show="activeTab === 'chat'" class="tab-pane h-full">
         <div class="chat-workspace">
           <!-- 会话列表 -->
           <div class="sessions-sidebar">
@@ -634,7 +658,7 @@ onUnmounted(() => clearInterval(timer))
       </section>
 
       <!-- 模型页 -->
-      <section v-if="activeTab === 'models'" class="tab-pane">
+      <section v-show="activeTab === 'models'" class="tab-pane">
         <div class="models-premium">
           <div class="view-header">
             <div class="header-main">
@@ -654,10 +678,19 @@ onUnmounted(() => clearInterval(timer))
           </div>
 
           <div class="models-grid-premium">
-            <div v-for="m in filteredModels" :key="m.id" class="model-card-premium">
+            <div v-for="m in filteredModels" :key="m.id" :class="['model-card-premium', { 'is-reasoning': isReasoning(m.id) }]">
               <div class="m-card-header">
                 <span class="m-name">{{ m.id }}</span>
-                <span v-if="m.capabilities && m.capabilities.includes('multimodal')" class="m-cap-tag">Vision</span>
+                <div class="m-actions">
+                  <button 
+                    :class="['btn-toggle-reasoning', { active: isReasoning(m.id) }]"
+                    @click.stop="toggleReasoning(m.id)"
+                    title="Use for Wiki Reasoning"
+                  >
+                    ✨
+                  </button>
+                  <span v-if="m.capabilities && m.capabilities.includes('multimodal')" class="m-cap-tag">Vision</span>
+                </div>
               </div>
               
               <div class="m-card-body">
@@ -690,7 +723,7 @@ onUnmounted(() => clearInterval(timer))
       </section>
       
       <!-- 统计页 -->
-      <section v-if="activeTab === 'stats'" class="tab-pane">
+      <section v-show="activeTab === 'stats'" class="tab-pane">
         <div class="metrics-bar">
           <div class="metric-item">
             <span class="m-label">{{ t('total_req') }}</span>
@@ -754,7 +787,7 @@ onUnmounted(() => clearInterval(timer))
 
           <!-- Pagination -->
           <div v-if="totalPages > 1" class="pagination-premium">
-            <button :disabled="currentPage === 1" @click="currentPage--" class="page-nav">
+            <button :disabled="currentPage === 1" @click="changePage(currentPage - 1)" class="page-nav">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3"><polyline points="15 18 9 12 15 6"></polyline></svg>
             </button>
             <div class="page-numbers">
@@ -762,12 +795,12 @@ onUnmounted(() => clearInterval(timer))
                 v-for="p in totalPages" 
                 :key="p"
                 :class="['page-num', { active: currentPage === p }]"
-                @click="currentPage = p"
+                @click="changePage(p)"
               >
                 {{ p }}
               </span>
             </div>
-            <button :disabled="currentPage === totalPages" @click="currentPage++" class="page-nav">
+            <button :disabled="currentPage === totalPages" @click="changePage(currentPage + 1)" class="page-nav">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"></polyline></svg>
             </button>
           </div>
@@ -775,7 +808,7 @@ onUnmounted(() => clearInterval(timer))
       </section>
 
       <!-- 开发者中心 (API 指南) -->
-      <section v-if="activeTab === 'docs'" class="tab-pane">
+      <section v-show="activeTab === 'docs'" class="tab-pane">
         <div class="docs-premium">
           <div class="view-header">
             <h1>{{ t('api_guide') }}</h1>
@@ -830,7 +863,7 @@ onUnmounted(() => clearInterval(timer))
       </section>
 
       
-      <section v-if="activeTab === 'settings'" class="tab-pane">
+      <section v-show="activeTab === 'settings'" class="tab-pane">
         <div class="settings-premium">
           <div class="view-header">
             <h1>{{ t('settings') }}</h1>
@@ -886,7 +919,172 @@ onUnmounted(() => clearInterval(timer))
                   </div>
                 </div>
               </div>
+            </div>
 
+            <!-- Wiki 智能配置组 -->
+            <div class="settings-group">
+              <div class="group-header">
+                <h3>{{ t('wiki_intelligence') }}</h3>
+                <p>{{ t('reasoning_model_desc') }}</p>
+              </div>
+              
+              <div class="settings-list">
+                <div class="settings-row">
+                  <div class="s-info">
+                    <label>{{ t('reasoning_model') }}</label>
+                    <span class="s-desc">{{ t('reasoning_model_desc') }}</span>
+                  </div>
+                  <div class="s-action">
+                    <input v-model="settings.REASONING_MODEL" type="text" placeholder="gpt-4o-mini" list="reasoning-models-list">
+                    <datalist id="reasoning-models-list">
+                      <option value="gpt-4o-mini"></option>
+                      <option value="gpt-4o"></option>
+                      <option value="gpt-4o-free"></option>
+                      <option value="claude-3-5-sonnet-20240620"></option>
+                      <option value="claude-3-5-sonnet-free"></option>
+                      <option value="deepseek-v3"></option>
+                      <option value="qwen-plus"></option>
+                    </datalist>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- WeChat API Config Group -->
+            <div class="settings-group">
+              <div class="group-header">
+                <h3>{{ t('wechat_api_keys') }}</h3>
+                <p>配置用于一键推送文章草稿至微信公众号草稿箱的凭证。</p>
+              </div>
+              
+              <div class="settings-list">
+                <div class="settings-row">
+                  <div class="s-info">
+                    <label>{{ t('wechat_appid') }}</label>
+                    <span class="s-desc">{{ t('wechat_appid_desc') }}</span>
+                  </div>
+                  <div class="s-action">
+                    <input v-model="settings.WECHAT_APP_ID" type="text" placeholder="wxf8...">
+                  </div>
+                </div>
+
+                <div class="settings-row">
+                  <div class="s-info">
+                    <label>{{ t('wechat_appsecret') }}</label>
+                    <span class="s-desc">{{ t('wechat_appsecret_desc') }}</span>
+                  </div>
+                  <div class="s-action">
+                    <input v-model="settings.WECHAT_APP_SECRET" type="password" placeholder="Secret Key...">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- AI 写作助手配置 -->
+            <div class="settings-group">
+              <div class="group-header">
+                <h3>{{ t('writing_ai') }}</h3>
+                <p>{{ t('writing_ai_desc') }}</p>
+              </div>
+
+              <div class="settings-list">
+                <!-- 统一的 AI 模式 + 模型选择行 -->
+                <div class="settings-row writing-combined-row">
+                  <div class="s-info">
+                    <label>推理方式</label>
+                    <span class="s-desc">选择 AI 助手使用的推理方式与模型</span>
+                  </div>
+                  <div class="s-action writing-controls">
+                    <!-- 模式切换 -->
+                    <div class="writing-mode-toggle">
+                      <button 
+                        class="mode-btn" 
+                        :class="{ active: !settings.WRITING_API_URL }"
+                        @click="settings.WRITING_API_URL = ''; settings.WRITING_API_KEY = ''; settings.WRITING_API_MODEL = ''"
+                      >{{ t('writing_mode_auto') }}</button>
+                      <button 
+                        class="mode-btn"
+                        :class="{ active: !!settings.WRITING_API_URL }"
+                        @click="settings.WRITING_API_URL = settings.WRITING_API_URL || 'https://api.deepseek.com/v1'"
+                      >{{ t('writing_mode_custom') }}</button>
+                    </div>
+
+                    <!-- 自动路由：首选模型下拉 -->
+                    <select v-if="!settings.WRITING_API_URL" v-model="settings.WRITING_MIXHUB_MODEL" class="provider-select">
+                      <optgroup label="🔀 自动">
+                        <option value="any">自动选择最优模型</option>
+                      </optgroup>
+                      <optgroup label="🟠 阿里百炼 (Bailian)">
+                        <option value="qwen-plus">qwen-plus（推荐）</option>
+                        <option value="qwen-turbo">qwen-turbo（快速）</option>
+                        <option value="qwen-long">qwen-long（长文本）</option>
+                        <option value="qwen2.5-32b-instruct">qwen2.5-32b-instruct</option>
+                        <option value="qwen2.5-14b-instruct">qwen2.5-14b-instruct</option>
+                        <option value="qwen2.5-7b-instruct">qwen2.5-7b-instruct</option>
+                      </optgroup>
+                      <optgroup label="🟣 魔搭 (ModelScope)">
+                        <option value="deepseek-ai/DeepSeek-V3.2">DeepSeek-V3.2</option>
+                        <option value="deepseek-ai/DeepSeek-R1-0528">DeepSeek-R1-0528（推理）</option>
+                        <option value="Qwen/Qwen3-30B-A3B">Qwen3-30B-A3B</option>
+                        <option value="Qwen/Qwen3-8B">Qwen3-8B</option>
+                      </optgroup>
+                      <optgroup label="🔵 AIHubMix（全球模型）">
+                        <option value="gpt-4o-mini">gpt-4o-mini</option>
+                        <option value="gpt-4o">gpt-4o</option>
+                        <option value="gpt-4o-free">gpt-4o-free（免费）</option>
+                        <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet</option>
+                        <option value="deepseek-v3">deepseek-v3</option>
+                        <option value="deepseek-v3-free">deepseek-v3-free（免费）</option>
+                        <option value="gemini-2.5-pro-preview">gemini-2.5-pro</option>
+                      </optgroup>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- 自定义 API 配置项 (直连模式时显示) -->
+                <template v-if="settings.WRITING_API_URL">
+                  <div class="settings-row">
+                    <div class="s-info">
+                      <label>{{ t('writing_api_url') }}</label>
+                      <span class="s-desc">{{ t('writing_api_url_desc') }}</span>
+                    </div>
+                    <div class="s-action">
+                      <input v-model="settings.WRITING_API_URL" type="text" placeholder="https://api.deepseek.com/v1">
+                    </div>
+                  </div>
+
+                  <div class="settings-row">
+                    <div class="s-info">
+                      <label>{{ t('writing_api_key') }}</label>
+                      <span class="s-desc">{{ t('writing_api_key_desc') }}</span>
+                    </div>
+                    <div class="s-action">
+                      <input v-model="settings.WRITING_API_KEY" type="password" placeholder="sk-...">
+                    </div>
+                  </div>
+
+                  <div class="settings-row">
+                    <div class="s-info">
+                      <label>{{ t('writing_api_model') }}</label>
+                      <span class="s-desc">{{ t('writing_api_model_desc') }}</span>
+                    </div>
+                    <div class="s-action">
+                      <input v-model="settings.WRITING_API_MODEL" type="text" placeholder="deepseek-chat" list="writing-models-list">
+                      <datalist id="writing-models-list">
+                        <option value="deepseek-chat"></option>
+                        <option value="deepseek-reasoner"></option>
+                        <option value="glm-4-flash"></option>
+                        <option value="glm-4-plus"></option>
+                        <option value="gpt-4o-mini"></option>
+                        <option value="gpt-4o"></option>
+                        <option value="claude-3-5-haiku-20241022"></option>
+                        <option value="qwen-plus"></option>
+                        <option value="qwen-turbo"></option>
+                      </datalist>
+                    </div>
+                  </div>
+                </template>
+              </div>
             </div>
 
             <!-- 诊断组 -->
@@ -942,6 +1140,16 @@ onUnmounted(() => clearInterval(timer))
         </div>
       </div>
     </div>
+
+    <!-- Toast 通知 -->
+    <Transition name="toast">
+      <div v-if="toast.visible" :class="['toast-premium', toast.type]">
+        <div class="toast-content">
+          <span class="toast-icon">{{ toast.type === 'success' ? '✅' : 'ℹ️' }}</span>
+          {{ toast.message }}
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -1351,10 +1559,86 @@ nav { flex: 1; overflow-y: auto; margin: 10px 0; }
 .s-action { width: 450px; }
 .s-action input { width: 100%; padding: 12px 16px; border: 1px solid var(--border); border-radius: 10px; font-family: 'JetBrains Mono', monospace; font-size: 13px; transition: 0.3s; background: var(--sidebar); }
 .s-action input:focus { outline: none; border-color: var(--primary); background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+.provider-select { width: 100%; height: 40px; padding: 0 36px 0 14px; box-sizing: border-box; border: 1.5px solid var(--border); border-radius: 10px; font-size: 13px; font-weight: 600; transition: all 0.2s; background: var(--sidebar) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 12px center; color: var(--text); cursor: pointer; appearance: none; -webkit-appearance: none; }
+.provider-select:focus { outline: none; border-color: var(--primary); background-color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
 
 .settings-footer-premium { display: flex; justify-content: flex-end; }
 .btn-save-premium { padding: 14px 40px; background: var(--primary); color: white; border: none; border-radius: 12px; font-weight: 800; cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 8px; font-size: 14px; }
 .btn-save-premium:hover { transform: translateY(-2px); box-shadow: 0 8px 24px var(--primary-light); }
+
+/* Writing Mode Controls */
+.writing-combined-row { align-items: flex-start !important; padding: 20px 30px !important; }
+.writing-controls { display: flex; flex-direction: column; gap: 8px; }
+.writing-mode-toggle { display: flex; gap: 8px; }
+.mode-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: var(--sidebar);
+  color: var(--text-light);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+.mode-btn:hover { border-color: var(--primary); color: var(--primary); }
+.mode-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+  box-shadow: 0 4px 12px var(--primary-light);
+}
+
+/* Reasoning Toggle Styles */
+.m-actions { display: flex; align-items: center; gap: 8px; }
+.btn-toggle-reasoning {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: white;
+  cursor: pointer;
+  transition: 0.2s;
+  font-size: 14px;
+}
+.btn-toggle-reasoning:hover { border-color: var(--primary); background: var(--primary-light); }
+.btn-toggle-reasoning.active { 
+  background: var(--primary); 
+  color: white; 
+  border-color: var(--primary); 
+  box-shadow: 0 0 10px var(--primary-light); 
+}
+.model-card-premium.is-reasoning {
+  border-color: var(--primary);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.1);
+}
+
+/* Toast Styles */
+.toast-premium {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  border: 1px solid var(--border);
+  z-index: 9999;
+  font-weight: 700;
+  font-size: 14px;
+}
+.toast-premium.success { border-color: var(--success); color: var(--success); background: #f0fdf4; }
+.toast-premium.info { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+
+.toast-enter-active, .toast-leave-active { transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.toast-enter-from { transform: translate(-50%, -20px); opacity: 0; }
+.toast-leave-to { transform: translate(-50%, -20px); opacity: 0; }
 
 /* Artifact Preview Styles */
 .code-block-wrapper { position: relative; }

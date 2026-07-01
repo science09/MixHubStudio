@@ -1,0 +1,27 @@
+/* Global scrollbar styling for WeChat previews */
+#wenyan ::-webkit-scrollbar {
+  height: 8px !important;
+  width: 8px !important;
+}
+
+#wenyan ::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+#wenyan ::-webkit-scrollbar-thumb {
+  background: rgba(120, 120, 120, 0.3) !important;
+  border-radius: 4px !important;
+}
+
+#wenyan ::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 120, 120, 0.5) !important;
+}
+
+/* Specific styling for dark code blocks scrollbar thumb to blend in */
+#wenyan .wechat-code-block-table ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25) !important;
+}
+
+#wenyan .wechat-code-block-table ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4) !important;
+}

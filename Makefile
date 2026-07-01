@@ -34,8 +34,21 @@ build:
 	npm run tauri build
 
 clean:
+	@echo "正在清理缓存和临时文件..."
 	rm -rf __pycache__
 	find . -name "*.pyc" -delete
+	rm -rf dist
+	@if [ -d "src-tauri" ]; then \
+		echo "正在清理 Rust 编译产物 (src-tauri/target)..."; \
+		cd src-tauri && cargo clean; \
+	fi
+	@echo "清理完成！"
+
+deep-clean: clean
+	@echo "执行深度清理 (删除 node_modules 和虚拟环境)..."
+	rm -rf node_modules
+	rm -rf $(VENV)
+	@echo "深度清理完成！请重新运行 'make setup' 安装依赖。"
 
 reset-db:
 	rm -f aihubmix_stats.db
