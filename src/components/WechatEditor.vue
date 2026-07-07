@@ -30,7 +30,7 @@ import {
 const currentLang = ref('zh')
 
 const t = (key) => {
-  const lang = window.__MIXHUB_LANG__ || 'zh'
+  const lang = window.__ONEINK_LANG__ || 'zh'
   return translations[lang]?.[key] || translations['zh'][key] || key
 }
 
@@ -1038,7 +1038,7 @@ const resolveLocalPreviewHtml = (html) => {
   // Replace Github raw/blob assets URLs with local hosted public assets paths for local previewing
   // Supports http/https, raw/blob, any branch name, case-insensitive, and uses relative paths
   let resolved = html
-    .replace(/https?:\/\/(?:github\.com\/science09\/MixHubStudio\/(?:raw|blob)|raw\.githubusercontent\.com\/science09\/MixHubStudio)\/[^/]+\/assets\//gi, 'assets/')
+    .replace(/https?:\/\/(?:github\.com\/science09\/OneInk\/(?:raw|blob)|raw\.githubusercontent\.com\/science09\/OneInk)\/[^/]+\/assets\//gi, 'assets/')
   
   // Normalize any absolute /assets/ paths to relative assets/ to prevent root directory resolution issues in WebKit
   resolved = resolved.replace(/(src=["'])\/assets\//gi, '$1assets/')

@@ -24,18 +24,16 @@ const md = new MarkdownIt({
   breaks: true
 })
 
-import WikiView from './components/WikiView.vue'
 import WechatEditor from './components/WechatEditor.vue'
 import WechatAnalytics from './components/wechat-editor/WechatAnalytics.vue'
 import { i18n, currentLang, t, toggleLang } from './utils/i18n'
 
 watch(currentLang, (newVal) => {
-  window.__MIXHUB_LANG__ = newVal
+  window.__ONEINK_LANG__ = newVal
 }, { immediate: true })
 
 // 状态管理
 const activeTab = ref('chat')
-const wikiViewRef = ref(null)
 
 const showModal = (title, msg, type = 'info', onConfirm = null) => {
   // 简单的弹窗逻辑
@@ -328,7 +326,7 @@ const settings = ref({
   WRITING_API_URL: '',
   WRITING_API_KEY: '',
   WRITING_API_MODEL: '',
-  WRITING_MIXHUB_MODEL: 'any',
+  WRITING_ONEINK_MODEL: 'any',
 })
 const isSaving = ref(false)
 const modelFilter = ref('All')
@@ -349,20 +347,6 @@ const showToast = (msg, type = 'info') => {
   setTimeout(() => { toast.value.visible = false }, 3000)
 }
 
-const isReasoning = (modelId) => {
-  if (!settings.value.REASONING_MODEL) return false
-  return settings.value.REASONING_MODEL.split(',').includes(modelId)
-}
-const toggleReasoning = (modelId) => {
-  let list = settings.value.REASONING_MODEL ? settings.value.REASONING_MODEL.split(',') : []
-  if (list.includes(modelId)) {
-    list = list.filter(id => id !== modelId)
-  } else {
-    list.push(modelId)
-  }
-  settings.value.REASONING_MODEL = list.filter(id => id.trim() !== '').join(',')
-  saveSettings()
-}
 
 const filteredModels = computed(() => {
   if (modelFilter.value.toLowerCase() === 'all') return stats.value.models
@@ -494,8 +478,8 @@ onUnmounted(() => clearInterval(timer))
     <!-- 侧边栏 -->
     <aside class="sidebar">
       <div class="logo">
-        <img :src="logoUrl" class="logo-img" alt="MixHub">
-        <span>MixHub Studio</span>
+        <img :src="logoUrl" class="logo-img" alt="OneInk">
+        <span>OneInk Studio</span>
       </div>
       <nav>
         <div :class="['nav-item', { active: activeTab === 'chat' }]" @click="activeTab = 'chat'">
@@ -505,10 +489,6 @@ onUnmounted(() => clearInterval(timer))
         <div :class="['nav-item', { active: activeTab === 'docs' }]" @click="activeTab = 'docs'" key="api-guide-item">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
           {{ t('api_guide') }}
-        </div>
-        <div :class="['nav-item', { active: activeTab === 'wiki' }]" @click="activeTab = 'wiki'">
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
-          {{ t('wiki') }}
         </div>
         <div :class="['nav-item', { active: activeTab === 'wechat' }]" @click="activeTab = 'wechat'">
           <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
@@ -556,8 +536,6 @@ onUnmounted(() => clearInterval(timer))
         </div>
       </div>
 
-      <!-- Wiki Tab -->
-      <WikiView v-show="activeTab === 'wiki'" ref="wikiViewRef" :showModal="showModal" />
 
       <!-- WeChat Editor Tab -->
       <WechatEditor v-show="activeTab === 'wechat'" />
@@ -678,17 +656,10 @@ onUnmounted(() => clearInterval(timer))
           </div>
 
           <div class="models-grid-premium">
-            <div v-for="m in filteredModels" :key="m.id" :class="['model-card-premium', { 'is-reasoning': isReasoning(m.id) }]">
+            <div v-for="m in filteredModels" :key="m.id" class="model-card-premium">
               <div class="m-card-header">
                 <span class="m-name">{{ m.id }}</span>
                 <div class="m-actions">
-                  <button 
-                    :class="['btn-toggle-reasoning', { active: isReasoning(m.id) }]"
-                    @click.stop="toggleReasoning(m.id)"
-                    title="Use for Wiki Reasoning"
-                  >
-                    ✨
-                  </button>
                   <span v-if="m.capabilities && m.capabilities.includes('multimodal')" class="m-cap-tag">Vision</span>
                 </div>
               </div>
@@ -921,34 +892,6 @@ onUnmounted(() => clearInterval(timer))
               </div>
             </div>
 
-            <!-- Wiki 智能配置组 -->
-            <div class="settings-group">
-              <div class="group-header">
-                <h3>{{ t('wiki_intelligence') }}</h3>
-                <p>{{ t('reasoning_model_desc') }}</p>
-              </div>
-              
-              <div class="settings-list">
-                <div class="settings-row">
-                  <div class="s-info">
-                    <label>{{ t('reasoning_model') }}</label>
-                    <span class="s-desc">{{ t('reasoning_model_desc') }}</span>
-                  </div>
-                  <div class="s-action">
-                    <input v-model="settings.REASONING_MODEL" type="text" placeholder="gpt-4o-mini" list="reasoning-models-list">
-                    <datalist id="reasoning-models-list">
-                      <option value="gpt-4o-mini"></option>
-                      <option value="gpt-4o"></option>
-                      <option value="gpt-4o-free"></option>
-                      <option value="claude-3-5-sonnet-20240620"></option>
-                      <option value="claude-3-5-sonnet-free"></option>
-                      <option value="deepseek-v3"></option>
-                      <option value="qwen-plus"></option>
-                    </datalist>
-                  </div>
-                </div>
-              </div>
-            </div>
 
             <!-- WeChat API Config Group -->
             <div class="settings-group">
@@ -1010,7 +953,7 @@ onUnmounted(() => clearInterval(timer))
                     </div>
 
                     <!-- 自动路由：首选模型下拉 -->
-                    <select v-if="!settings.WRITING_API_URL" v-model="settings.WRITING_MIXHUB_MODEL" class="provider-select">
+                    <select v-if="!settings.WRITING_API_URL" v-model="settings.WRITING_ONEINK_MODEL" class="provider-select">
                       <optgroup label="🔀 自动">
                         <option value="any">自动选择最优模型</option>
                       </optgroup>
@@ -1097,7 +1040,7 @@ onUnmounted(() => clearInterval(timer))
                 <div class="settings-row">
                   <div class="s-info">
                     <label>{{ t('open_logs') }}</label>
-                    <span class="s-desc">Path: ~/Library/Logs/com.mixhub.ultimate/</span>
+                    <span class="s-desc">Path: ~/Library/Logs/com.oneink.ultimate/</span>
                   </div>
                   <div class="s-action">
                     <button class="btn-sync" style="margin-bottom: 0;" @click="openLogFolder">📁 {{ t('open_logs') }}</button>

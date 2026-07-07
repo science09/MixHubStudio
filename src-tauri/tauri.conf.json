@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "MixHub Studio",
+  "productName": "OneInk Studio",
   "version": "0.1.3",
-  "identifier": "com.mixhub.ultimate",
+  "identifier": "com.oneink.ultimate",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "MixHub Studio",
+        "title": "OneInk Studio",
         "width": 1200,
         "height": 850,
         "dragDropEnabled": false

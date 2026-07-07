@@ -546,7 +546,7 @@ export const publishToWechatDraft = async ({
     title: publishTitle,
     content: cleanedHtml,
     thumb_media_id: thumbMediaId,
-    author: 'MixHub Studio'
+    author: 'OneInk Studio'
   })
 
   if (res.media_id) {

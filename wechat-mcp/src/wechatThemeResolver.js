@@ -11,7 +11,8 @@ export const themesList = [
   { id: 'maize', name: 'Maize' },
   { id: 'purple', name: 'Purple' },
   { id: 'phycat', name: '物理猫-薄荷' },
-  { id: 'sports', name: '运动风' }
+  { id: 'sports', name: '运动风' },
+  { id: 'chinese', name: '中国风' }
 ]
 
 export const resolveThemeCss = async (themeId) => {
@@ -720,6 +721,232 @@ export const resolveThemeCss = async (themeId) => {
       border-bottom: 1px dashed #1677ff;
     }
     `;
+  } else if (themeId === 'chinese') {
+    css = `
+    #wenyan {
+      --theme-primary: #8b1e22;
+      max-width: 677px;
+      margin: 0 auto;
+      padding: 12px;
+      background-color: #ffffff;
+      font-family: Georgia, Cambria, 'Times New Roman', 'Noto Serif SC', 'Source Han Serif SC', 'Source Han Serif CN', serif;
+      color: #3e3a35;
+      line-height: 1.85;
+      font-size: 16px;
+    }
+    #wenyan p {
+      margin: 1.5em 0;
+      letter-spacing: 0.03em;
+      color: #3e3a35;
+      text-align: justify;
+      line-height: 1.85;
+      font-size: 16px;
+    }
+    #wenyan h1 {
+      font-size: 24px;
+      font-weight: 800;
+      color: #8b1e22;
+      text-align: center;
+      margin: 1.8em 0 1.2em;
+      letter-spacing: 0.05em;
+    }
+    #wenyan h2 {
+      margin: 2em 0 1.1em !important;
+      padding: 4px 0 8px 14px !important;
+      font-size: 22px !important;
+      font-weight: 700 !important;
+      color: #8b1e22 !important;
+      border-left: 5px solid #8b1e22 !important;
+      border-bottom: 2px dashed #e3dad2 !important;
+      display: block !important;
+      text-align: left !important;
+      background: none !important;
+      border-top: none !important;
+      border-right: none !important;
+    }
+    #wenyan h3 {
+      margin: 1.8em 0 1em !important;
+      padding: 3px 0 7px 12px !important;
+      font-size: 20px !important;
+      font-weight: 700 !important;
+      color: #8b1e22 !important;
+      border-left: 4px solid #8b1e22 !important;
+      border-bottom: 2px dashed #e3dad2 !important;
+      display: block !important;
+      text-align: left !important;
+      background: none !important;
+      border-top: none !important;
+      border-right: none !important;
+    }
+    #wenyan h4 {
+      margin: 1.6em 0 0.8em !important;
+      padding: 2px 0 6px 10px !important;
+      font-size: 18px !important;
+      font-weight: 700 !important;
+      color: #8b1e22 !important;
+      border-left: 3px solid #8b1e22 !important;
+      border-bottom: 2px dashed #e3dad2 !important;
+      display: block !important;
+      text-align: left !important;
+      background: none !important;
+      border-top: none !important;
+      border-right: none !important;
+    }
+    #wenyan h5 {
+      font-size: 15px !important;
+      font-weight: 700 !important;
+      color: #3e3a35 !important;
+      margin: 1.4em 0 0.6em !important;
+      line-height: 1.4 !important;
+    }
+    #wenyan h6 {
+      font-size: 14px !important;
+      font-weight: 700 !important;
+      color: #6e675f !important;
+      margin: 1.2em 0 0.5em !important;
+      line-height: 1.4 !important;
+    }
+    #wenyan blockquote {
+      font-style: normal;
+      padding: 1.2em 1.5em;
+      border-left: 4.5px solid #8b1e22;
+      background-color: #fcfaf7;
+      color: #5e564d;
+      margin: 1.6em 0;
+      border-top: none;
+      border-right: none;
+      border-bottom: none;
+      border-radius: 0;
+    }
+    #wenyan blockquote p {
+      margin: 0;
+      color: #5e564d;
+      line-height: 1.8;
+      font-size: 16px;
+    }
+    #wenyan strong {
+      color: #8b1e22;
+      font-weight: 700;
+    }
+    #wenyan em {
+      color: #8b1e22;
+      font-style: italic;
+    }
+    #wenyan a {
+      color: #8b1e22;
+      text-decoration: underline;
+      text-decoration-color: #c48f90;
+      text-underline-offset: 3px;
+    }
+    #wenyan hr {
+      height: 1px;
+      border: none;
+      border-top: 1.5px dashed #ebdcd0;
+      margin: 2.5em 0;
+    }
+    #wenyan code {
+      font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
+      font-size: 14px;
+      background-color: #faf6f3;
+      color: #8b1e22;
+      padding: 3px 5px;
+      border-radius: 3px;
+      border: 1px solid #ebdcd0;
+      margin: 0 2px;
+    }
+    #wenyan pre {
+      display: block;
+      box-sizing: border-box;
+      font-size: 14px;
+      overflow-x: auto;
+      border-radius: 12px;
+      padding: 1.25em 1.5em 0.95em;
+      line-height: 1.6;
+      margin: 1.2em 0 0.6em;
+      background: repeating-linear-gradient(45deg, #faf7f5, #faf7f5 12px, #f5eee8 12px, #f5eee8 16px);
+      color: #3e3a35;
+      border: 1px solid #d2beb2;
+    }
+    #wenyan pre code {
+      background: none;
+      padding: 0;
+      color: inherit;
+      border-radius: 0;
+    }
+    #wenyan ul {
+      list-style: none;
+      padding: 0;
+      margin: 1.5em 0;
+      color: #3e3a35;
+      font-size: 16px;
+    }
+    #wenyan ul li {
+      margin: 0.5em 0;
+      padding: 0 0 0 1.2em;
+      line-height: 1.8;
+      font-size: 16px;
+      position: relative;
+    }
+    #wenyan ul li::before {
+      content: "•";
+      color: #8b1e22;
+      font-size: 1.2em;
+      position: absolute;
+      left: 0;
+      top: -0.05em;
+    }
+    #wenyan ol {
+      padding-left: 1.5em;
+      margin: 1.5em 0;
+      color: #3e3a35;
+      font-size: 16px;
+    }
+    #wenyan ol li {
+      margin: 0.5em 0;
+      line-height: 1.8;
+      font-size: 16px;
+    }
+    #wenyan table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.8em 0;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #ebdcd0;
+      background-color: #ffffff;
+    }
+    #wenyan table th {
+      padding: 12px 16px;
+      text-align: left !important;
+      font-weight: bold !important;
+      background-color: #f3eae1;
+      color: #8b1e22;
+      border-bottom: 1.5px solid #ebdcd0;
+      font-size: 15px !important;
+    }
+    #wenyan table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid #ebdcd0;
+      color: #3e3a35;
+      font-size: 14px !important;
+    }
+    #wenyan table tr td:first-child {
+      color: #8b1e22 !important;
+      font-weight: bold !important;
+    }
+    #wenyan table tr:nth-child(even) td {
+      background-color: #faf9f6;
+    }
+    #wenyan img {
+      max-width: 100%;
+      border-radius: 8px;
+      margin: 1.5em auto;
+      display: block;
+      border: 1px solid #ebdcd0;
+      padding: 4px;
+      background-color: #ffffff;
+    }
+    `;
   } else {
     const themeObj = getTheme(themeId)
     if (themeObj) {
@@ -1031,6 +1258,11 @@ export const resolveThemeCss = async (themeId) => {
     rgbColor = '61, 184, 191'
     h4Color = '#3db8bf'
     rgbH4Color = '61, 184, 191'
+  } else if (themeId === 'chinese') {
+    primaryColor = '#8b1e22'
+    rgbColor = '139, 30, 34'
+    h4Color = '#b89058'
+    rgbH4Color = '184, 144, 88'
   }
 
   css += `
@@ -1040,7 +1272,7 @@ export const resolveThemeCss = async (themeId) => {
   }
   `
 
-  if (themeId !== 'sports') {
+  if (themeId !== 'sports' && themeId !== 'chinese') {
     css += `
     #wenyan h4 {
       display: flex !important;
@@ -1062,6 +1294,11 @@ export const resolveThemeCss = async (themeId) => {
       content: "◆";
       display: inline-block !important;
       color: var(--theme-h4-color) !important;
+      width: auto !important;
+      height: auto !important;
+      background: none !important;
+      background-color: transparent !important;
+      margin-left: 0px !important;
       margin-right: 8px !important;
       font-size: 14px !important;
       line-height: 1 !important;

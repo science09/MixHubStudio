@@ -525,7 +525,7 @@ fn init_db() -> Connection {
         } else {
             // 打包模式：优先使用用户主目录下的隐藏文件夹，避免写权限问题导致崩溃
             if let Ok(home) = std::env::var("HOME") {
-                let app_dir = std::path::PathBuf::from(home).join(".mixhub-studio");
+                let app_dir = std::path::PathBuf::from(home).join(".oneink-studio");
                 if !app_dir.exists() {
                     let _ = std::fs::create_dir_all(&app_dir);
                 }
@@ -886,7 +886,7 @@ async fn save_settings(State(state): State<Arc<AppState>>, Json(payload): Json<H
 /// Proxy endpoint for the writing assistant.
 /// Tauri WebView cannot fetch external HTTPS URLs directly ("Load failed").
 /// This handler runs in the Rust process (no CSP) and forwards to the
-/// user-configured custom API, or falls back to MixHub routing.
+/// user-configured custom API, or falls back to OneInk routing.
 async fn writing_proxy(State(state): State<Arc<AppState>>, Json(req): Json<serde_json::Value>) -> impl IntoResponse {
     let chat_req: ChatRequest = match serde_json::from_value(req.clone()) {
         Ok(r) => r,
@@ -901,7 +901,7 @@ async fn writing_proxy(State(state): State<Arc<AppState>>, Json(req): Json<serde
             let base = config.writing_api_url.trim_end_matches('/').to_string();
             (format!("{}/chat/completions", base), config.writing_api_key.clone())
         } else {
-            // Fall back to MixHub auto-routing
+            // Fall back to OneInk auto-routing
             drop(config);
             return chat_completions(State(state), Json(chat_req)).await.into_response();
         }
@@ -1261,7 +1261,7 @@ async fn get_paths_info() -> Result<serde_json::Value, String> {
         } else {
             workspace_path = cwd;
             if let Ok(home) = std::env::var("HOME") {
-                let app_dir = std::path::PathBuf::from(home).join(".mixhub-studio");
+                let app_dir = std::path::PathBuf::from(home).join(".oneink-studio");
                 db_path = app_dir.join("aihubmix_stats.db");
             }
         }

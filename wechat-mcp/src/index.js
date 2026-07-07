@@ -2,6 +2,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { publishToWechat } from "./wechat.js";
+import { fetchTrendingTopics } from "./crawler.js";
 
 const server = new Server(
   {
@@ -63,6 +64,21 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           },
           required: ["markdown"]
         }
+      },
+      {
+        name: "fetch_trending_topics",
+        description: "抓取主流平台（微博、抖音、知乎、Bilibili）的实时热搜/热点榜单。",
+        inputSchema: {
+          type: "object",
+          properties: {
+            platform: {
+              type: "string",
+              enum: ["weibo", "douyin", "zhihu", "bilibili"],
+              description: "要抓取的平台标识：weibo (微博), douyin (抖音), zhihu (知乎), bilibili (Bilibili)"
+            }
+          },
+          required: ["platform"]
+        }
       }
     ]
   };
@@ -93,6 +109,33 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           {
             type: "text",
             text: `发布失败: ${error.message || error}`
+          }
+        ]
+      };
+    }
+  } else if (request.params.name === "fetch_trending_topics") {
+    const args = request.params.arguments;
+    try {
+      const data = await fetchTrendingTopics(args.platform);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              success: true,
+              platform: args.platform,
+              data: data
+            }, null, 2)
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        isError: true,
+        content: [
+          {
+            type: "text",
+            text: `抓取热搜失败: ${error.message || error}`
           }
         ]
       };

@@ -8,6 +8,18 @@ export const isColorLight = (colorStr) => {
   if (!colorStr) return false
   colorStr = colorStr.trim().toLowerCase()
   if (colorStr.includes('linear-gradient')) {
+    const hexMatches = colorStr.match(/#[0-9a-fA-F]{3,8}\b/g)
+    if (hexMatches) {
+      for (const hex of hexMatches) {
+        if (isColorLight(hex)) return true
+      }
+    }
+    const rgbMatches = colorStr.match(/rgba?\(.*?\)/gi)
+    if (rgbMatches) {
+      for (const rgb of rgbMatches) {
+        if (isColorLight(rgb)) return true
+      }
+    }
     return colorStr.includes('#fff') || colorStr.includes('255, 255, 255') || colorStr.includes('#f7f8fa') || colorStr.includes('#f2f3f5') || colorStr.includes('#fafafa') || colorStr.includes('#f6f8fa')
   }
   if (colorStr === 'transparent' || colorStr === 'rgba(0, 0, 0, 0)') {
@@ -469,7 +481,11 @@ export const adaptWechatCodeBlocks = (element, themeCss) => {
     table.style.setProperty('width', '100%', 'important')
     table.style.setProperty('border-collapse', 'collapse', 'important')
     table.style.setProperty('display', 'table', 'important')
-    table.style.setProperty('margin', '1.2em 0', 'important')
+    if (customPreStyles['margin']) {
+      table.style.setProperty('margin', customPreStyles['margin'], 'important')
+    } else {
+      table.style.setProperty('margin', '1.2em 0', 'important')
+    }
     table.style.setProperty('box-sizing', 'border-box', 'important')
     table.style.setProperty('table-layout', 'fixed', 'important')
     table.style.setProperty('overflow', 'hidden', 'important')
@@ -589,6 +605,11 @@ export const adaptWechatCodeBlocks = (element, themeCss) => {
       codeContainer.style.setProperty(prop, val, 'important')
     }
 
+    if (customBg) {
+      codeContainer.style.setProperty('background', 'transparent', 'important')
+      codeContainer.style.setProperty('background-color', 'transparent', 'important')
+    }
+
     // Set scrollbar styles inline
     const thumbColor = isLight ? 'rgba(0, 0, 0, 0.25)' : 'rgba(255, 255, 255, 0.25)'
     codeContainer.style.setProperty('scrollbar-color', thumbColor + ' ' + cleanBgColor, 'important')
@@ -610,6 +631,10 @@ export const adaptWechatCodeBlocks = (element, themeCss) => {
           lines[lines.length - 1].push(node.cloneNode(true))
         }
       })
+      
+      if (lines.length > 1 && lines[lines.length - 1].length === 0) {
+        lines.pop()
+      }
       
       lines.forEach(lineNodes => {
         const lineSection = doc.createElement('section')
@@ -640,6 +665,10 @@ export const adaptWechatCodeBlocks = (element, themeCss) => {
           lines[lines.length - 1].push(node.cloneNode(true))
         }
       })
+      
+      if (lines.length > 1 && lines[lines.length - 1].length === 0) {
+        lines.pop()
+      }
       
       lines.forEach(lineNodes => {
         const lineSection = doc.createElement('section')

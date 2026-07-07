@@ -2484,35 +2484,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mixhub-studio"
-version = "0.1.0"
-dependencies = [
- "axum",
- "chrono",
- "dotenvy",
- "futures-util",
- "lazy_static",
- "log",
- "parking_lot",
- "pdf-extract",
- "reqwest 0.11.27",
- "rusqlite",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-log",
- "tauri-plugin-opener",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "tower-http 0.5.2",
- "urlencoding",
- "uuid",
-]
-
-[[package]]
 name = "muda"
 version = "0.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2837,6 +2808,35 @@ name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
+
+[[package]]
+name = "oneink-studio"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "chrono",
+ "dotenvy",
+ "futures-util",
+ "lazy_static",
+ "log",
+ "parking_lot",
+ "pdf-extract",
+ "reqwest 0.11.27",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-log",
+ "tauri-plugin-opener",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tower-http 0.5.2",
+ "urlencoding",
+ "uuid",
+]
 
 [[package]]
 name = "open"
